@@ -6,7 +6,7 @@
 
 # NoneBot Plugin Memos
 
-![License](https://img.shields.io/github/license/eya46/nonebot-plugin-memos)
+![License](https://img.shields.io/github/license/eya46/nonebot_plugin_memos)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![NoneBot](https://img.shields.io/badge/nonebot-2.4.1+-red.svg)
 </div>
