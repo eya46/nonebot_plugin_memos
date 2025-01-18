@@ -26,6 +26,4 @@ jobs:
         shell: bash
 
       - name: Publish package
-        run: |
-          uv publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
-        shell: bash
+        uses: pypa/gh-action-pypi-publish@release/v1
