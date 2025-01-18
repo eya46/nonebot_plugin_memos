@@ -5,9 +5,7 @@ from yarl import URL
 class ApiClient:
     def __init__(self, base_url: str, token: str):
         self.base_url: URL = URL(base_url)
-        self.client: AsyncClient = AsyncClient(
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        self.client: AsyncClient = AsyncClient(headers={"Authorization": f"Bearer {token}"})
         self.raw_data: list[str] = [base_url, token]
 
     def update_raw_data(self, base_url: str, token: str):
@@ -19,11 +17,7 @@ class ApiClient:
     async def getAuthStatus(self, token: str | None = None) -> Response:
         return await self.client.post(
             str(self.base_url / "api/v1/auth/status"),
-            headers={
-                "Authorization": f"Bearer {token}"
-                if token
-                else self.client.headers.get("Authorization")
-            },
+            headers={"Authorization": f"Bearer {token}" if token else self.client.headers.get("Authorization")},
         )
 
     async def checkAuthStatus(self, token: str | None = None) -> bool:
@@ -33,9 +27,7 @@ class ApiClient:
         except Exception:
             return False
 
-    async def createMemo(
-        self, content: str, visibility: str = "VISIBILITY_UNSPECIFIED"
-    ) -> Response:
+    async def createMemo(self, content: str, visibility: str = "VISIBILITY_UNSPECIFIED") -> Response:
         return await self.client.post(
             str(self.base_url / "api/v1/memos"),
             json={"content": content, "visibility": visibility},

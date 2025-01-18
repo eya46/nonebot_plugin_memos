@@ -19,7 +19,8 @@ from .client import ApiClient
 
 from nonebot_plugin_session_orm import get_session_persist_id
 from nonebot_plugin_alconna import Match, UniMessage, on_alconna
-from arclet.alconna import Alconna, Arg, Args, Subcommand
+from nonebot_plugin_alconna.builtins.extensions import ReplyRecordExtension
+from arclet.alconna import Alconna, Arg, Args, Namespace, Subcommand, namespace, StrMulti
 from nonebot_plugin_session import EventSession
 from nonebot_plugin_orm import async_scoped_session
 
@@ -33,17 +34,19 @@ __plugin_metadata__ = PluginMetadata(
     config=Config,
 )
 
-
-memos = on_alconna(
-    Alconna(
-        "memos",
-        Subcommand("bind", Args["url", str]["token", str]),
-        Subcommand("list"),
-        Subcommand("default", Arg("memo_id", int)),
-        Subcommand("delete", Arg("memo_id", int)),
-        Subcommand("create", Arg("content", str, seps="\n")),
+with namespace(Namespace("memos", strict=False)) as ns:
+    memos = on_alconna(
+        Alconna(
+            "memos",
+            Subcommand("bind", Args["url", str]["token", str]),
+            Subcommand("list"),
+            Subcommand("default", Arg("memo_id", int)),
+            Subcommand("unbind", Arg("memo_id", int)),
+            Subcommand("create", Arg("content?", StrMulti, seps="\n")),
+            namespace=Namespace("memos", strict=False),
+        ),
+        extensions=[ReplyRecordExtension()],
     )
-)
 
 
 @memos.assign("bind")
@@ -92,7 +95,6 @@ async def bind_handler(
         sqlSession.add(memo)
         await sqlSession.flush()
         await UniMessage("绑定成功").send()
-        
 
     if setting is None:  # 如果没有设置默认memo
         setting = Setting(user_id=session.id1, default_memo=memo.id)
@@ -143,8 +145,8 @@ async def default_handler(memo_id: Match[int], session: EventSession, sqlSession
     await UniMessage("设置成功").send()
 
 
-@memos.assign("delete")
-async def delete_handler(memo_id: Match[int], session: EventSession, sqlSession: async_scoped_session):
+@memos.assign("unbind")
+async def unbind_handler(memo_id: Match[int], session: EventSession, sqlSession: async_scoped_session):
     memo = await sqlSession.scalar(select(Memo).where(Memo.id == memo_id.result).where(Memo.user_id == session.id1))
 
     if memo is None:
