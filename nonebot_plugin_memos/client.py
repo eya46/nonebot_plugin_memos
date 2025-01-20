@@ -1,5 +1,25 @@
+from typing import Any, Type, TypeVar
+from nonebot.compat import TypeAdapter
 from httpx import AsyncClient, Response
+from pydantic import BaseModel
 from yarl import URL
+
+from .model import Memo, Visibility
+
+T = TypeVar("T", bound=BaseModel)
+
+TYPE_ADAPTER_CACHE: dict[int, TypeAdapter] = {}
+
+
+def get_type_adapter(model: Type[T]) -> TypeAdapter[T]:
+    model_hash = hash(model)
+    if model_hash not in TYPE_ADAPTER_CACHE:
+        TYPE_ADAPTER_CACHE[model_hash] = TypeAdapter(model)
+    return TYPE_ADAPTER_CACHE[model_hash]
+
+
+class UnSet:
+    pass
 
 
 class ApiClient:
@@ -33,5 +53,40 @@ class ApiClient:
             json={"content": content, "visibility": visibility},
         )
 
-    def buildMemoUrl(self, memo_id: int) -> str:
-        return str(self.base_url / f"m/{memo_id}")
+    async def createMemoWithModel(self, content: str, visibility: str = "VISIBILITY_UNSPECIFIED") -> Memo:
+        response = await self.createMemo(content, visibility)
+        response.raise_for_status()
+        return get_type_adapter(Memo).validate_json(response.text)
+
+    def buildMemoUrl(self, memo_uid: str) -> str:
+        return str(self.base_url / f"m/{memo_uid}")
+
+    async def getMemoByUid(self, uid: str) -> Response:
+        return await self.client.get(str(self.base_url / f"api/v1/memos:by-uid/{uid}"))
+
+    async def getMemoByUidWithModel(self, uid: str) -> Memo:
+        response = await self.getMemoByUid(uid)
+        response.raise_for_status()
+        return get_type_adapter(Memo).validate_json(response.text)
+
+    async def createComment(
+        self, memo_name: str, content: str, visibility: Visibility | Type[UnSet] = UnSet, resources: list | None = None
+    ) -> Response:
+        data: dict[str, Any] = {
+            "content": content,
+        }
+        if visibility is not UnSet:
+            data["visibility"] = visibility
+        if resources:
+            data["resources"] = resources
+        return await self.client.post(
+            str(self.base_url / f"api/v1/{memo_name}/comments"),
+            json=data,
+        )
+
+    async def createCommentWithModel(
+        self, memo_name: str, content: str, visibility: Visibility | Type[UnSet] = UnSet, resources: list | None = None
+    ) -> Memo:
+        response = await self.createComment(memo_name, content, visibility, resources)
+        response.raise_for_status()
+        return get_type_adapter(Memo).validate_json(response.text)

@@ -16,7 +16,7 @@ import sqlalchemy as sa
 
 revision: str = "af113b78e1a7"
 down_revision: str | Sequence[str] | None = None
-branch_labels: str | Sequence[str] | None = ("nonebot_plugin_memos",)
+branch_labels: str | Sequence[str] | None = ("1",)
 depends_on: str | Sequence[str] | None = None
 
 
