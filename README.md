@@ -21,6 +21,6 @@
 
 <div align="center">
 
-![yxvm](https://yxvm.com/assets/img/logo.png "yxvm")
+[![yxvm](./resources/yxvm-logo.webp "yxvm")](https://yxvm.com/)
 
 </div>
