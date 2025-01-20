@@ -16,3 +16,11 @@
 ![:eya46](https://count.getloli.com/get/@:eya46-plugin-memos?theme=gelbooru)
 
 </div>
+
+# 赞助
+
+<div align="center">
+
+![yxvm](https://yxvm.com/assets/img/logo.png "yxvm")
+
+</div>
