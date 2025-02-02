@@ -16,6 +16,7 @@ from .config import Config
 from .db import Memo, MemoRecord, Setting
 from .client import ApiClient
 from .depend import MemoAndClientDependency
+from .util import get_image_bytes
 
 from nonebot_plugin_session_orm import get_session_persist_id
 from nonebot_plugin_alconna import Image, Match, MsgId, UniMessage, UniMsg, on_alconna
@@ -183,7 +184,11 @@ async def create_handler(
 
     try:
         for image in msg[Image]:
-            raw_bytes = image.raw_bytes
+            raw_bytes = await get_image_bytes(image)
+
+            if raw_bytes is None:
+                continue
+
             await client.createResource(
                 filename=image.name,
                 content=image.raw_bytes,
