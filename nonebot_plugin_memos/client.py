@@ -1,6 +1,10 @@
+from datetime import datetime, timezone
 from typing import Any, Type, TypeVar
+from base64 import b64encode
+
 from nonebot.compat import TypeAdapter
 from httpx import AsyncClient, Response
+from filetype import guess_mime
 from pydantic import BaseModel
 from yarl import URL
 
@@ -53,6 +57,41 @@ class ApiClient:
             json={"content": content, "visibility": visibility},
         )
 
+    async def createResource(
+        self,
+        *,
+        name: str = "",
+        uid: str = "",
+        createTime: str = "",
+        filename: str,
+        content: str | bytes,
+        externalLink: str = "",
+        type_: str | None = None,
+        size: str,
+        memo: str,
+    ):
+        if createTime == "":
+            # "2025-02-02T11:16:35.944Z"
+            createTime = datetime.now(tz=timezone.utc).isoformat()
+        if isinstance(content, bytes):
+            content = b64encode(content).decode()
+        if type_ is None:
+            type_ = guess_mime(filename) or ""
+        return await self.client.post(
+            str(self.base_url / "api/v1/resources"),
+            json={
+                "name": name,
+                "uid": uid,
+                "createTime": createTime,
+                "filename": filename,
+                "content": content,
+                "externalLink": externalLink,
+                "type": type_,
+                "size": size,
+                "memo": memo,
+            },
+        )
+
     async def createMemoWithModel(self, content: str, visibility: str = "VISIBILITY_UNSPECIFIED") -> Memo:
         response = await self.createMemo(content, visibility)
         response.raise_for_status()
@@ -64,8 +103,24 @@ class ApiClient:
     async def getMemoByUid(self, uid: str) -> Response:
         return await self.client.get(str(self.base_url / f"api/v1/memos:by-uid/{uid}"))
 
+    async def getMemoById(self, memo_id: int) -> Response:
+        return await self.client.get(str(self.base_url / f"api/v1/memos/{memo_id}"))
+
+    async def getMemoByName(self, memo_name: str) -> Response:
+        return await self.client.get(str(self.base_url / f"api/v1/{memo_name}"))
+
     async def getMemoByUidWithModel(self, uid: str) -> Memo:
         response = await self.getMemoByUid(uid)
+        response.raise_for_status()
+        return get_type_adapter(Memo).validate_json(response.text)
+
+    async def getMemoByIdWithModel(self, memo_id: int) -> Memo:
+        response = await self.getMemoById(memo_id)
+        response.raise_for_status()
+        return get_type_adapter(Memo).validate_json(response.text)
+
+    async def getMemoByNameWithModel(self, memo_name: str) -> Memo:
+        response = await self.getMemoByName(memo_name)
         response.raise_for_status()
         return get_type_adapter(Memo).validate_json(response.text)
 

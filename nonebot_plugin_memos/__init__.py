@@ -15,10 +15,10 @@ from sqlalchemy import or_, select
 from .config import Config
 from .db import Memo, MemoRecord, Setting
 from .client import ApiClient
-from .depend import MemoAndClientDependency, MemoDependency
+from .depend import MemoAndClientDependency
 
 from nonebot_plugin_session_orm import get_session_persist_id
-from nonebot_plugin_alconna import Match, MsgId, UniMessage, UniMsg, on_alconna
+from nonebot_plugin_alconna import Image, Match, MsgId, UniMessage, UniMsg, on_alconna
 from nonebot_plugin_alconna.builtins.extensions import ReplyRecordExtension
 from arclet.alconna import Alconna, Arg, Args, Namespace, Option, Subcommand, namespace, StrMulti
 from nonebot_plugin_session import EventSession
@@ -43,7 +43,8 @@ with namespace(Namespace("memos", strict=False)) as ns:
             Subcommand("default", Arg("memo_id", int)),
             Subcommand("unbind", Arg("memo_id", int)),
             Subcommand("create", Arg("content?", StrMulti, seps="\n")),
-            Subcommand("comment", Option("--uid|-u", Arg("uid?", int | str)), Arg("content", StrMulti, seps="\n")),
+            Subcommand("comment", Option("--uid|-u", Arg("uid?", str)), Arg("content", StrMulti, seps="\n")),
+            Subcommand("link", Arg("uid?", str)),
             namespace=Namespace("memos", strict=False),
         ),
         extensions=[ReplyRecordExtension()],
@@ -165,7 +166,6 @@ async def create_handler(
     content: Match[str],
     session: EventSession,
     sqlSession: async_scoped_session,
-    memo: MemoDependency,
     memoAndClient: MemoAndClientDependency,
 ):
     tip = ""
@@ -180,6 +180,18 @@ async def create_handler(
         data = await client.createMemoWithModel(content.result)
     except Exception as e:
         await UniMessage(f"创建失败: {e}").finish()
+
+    try:
+        for image in msg[Image]:
+            raw_bytes = image.raw_bytes
+            await client.createResource(
+                filename=image.name,
+                content=image.raw_bytes,
+                size=str(len(raw_bytes)),
+                memo=data.name,
+            )
+    except Exception as e:
+        await UniMessage(f"资源上传失败: {e}").send()
 
     success_msg = await UniMessage(f"创建成功\n{client.buildMemoUrl(data.uid)}" + tip).send(at_sender=True)
 
@@ -211,7 +223,7 @@ async def comment_handler(
     msg: UniMsg,
     msg_id: MsgId,
     ext: ReplyRecordExtension,
-    uid: Match[int | str],
+    uid: Match[str],
     content: Match[str],
     session: EventSession,
     sqlSession: async_scoped_session,
@@ -223,20 +235,21 @@ async def comment_handler(
 
     if uid.available:
         uid_result = uid.result
-        if isinstance(uid_result, str):
-            if uid_result.startswith("memos/"):
-                memo_name = uid_result
-            else:
-                if uid_result.isdigit():
-                    memo_name = f"memos/{uid_result}"
-                else:
-                    try:
-                        memoModel = await client.getMemoByUidWithModel(uid_result)
-                        memo_name = memoModel.name
-                    except Exception as e:
-                        await UniMessage(f"解析memo uid失败: {e}").finish()
+
+        if uid_result.isdigit():
+            uid_result = f"memos/{uid_result}"
+
+        if uid_result.startswith("memos/"):
+            memo_name = uid_result
         else:
-            memo_name = f"memos/{uid_result}"
+            if uid_result.isdigit():
+                memo_name = f"memos/{uid_result}"
+            else:
+                try:
+                    memoModel = await client.getMemoByUidWithModel(uid_result)
+                    memo_name = memoModel.name
+                except Exception as e:
+                    await UniMessage(f"解析memo uid失败: {e}").finish()
     else:
         reply = ext.get_reply(msg_id)
 
@@ -286,4 +299,77 @@ async def comment_handler(
             message=str(msg),
         )
     )
+    await sqlSession.commit()
+
+
+@memos.assign("link")
+async def link_handler(
+    msg: UniMsg,
+    msg_id: MsgId,
+    ext: ReplyRecordExtension,
+    uid: Match[str],
+    sqlSession: async_scoped_session,
+    memoAndClient: MemoAndClientDependency,
+):
+    _, client = memoAndClient
+
+    memo_uid: str | None = None
+
+    memoRecord: MemoRecord | None = None
+
+    if uid.available:
+        uid_result = uid.result
+
+        if uid_result.isdigit():
+            uid_result = f"memos/{uid_result}"
+        if uid_result.startswith("memos/"):
+            try:
+                memo = await client.getMemoByNameWithModel(uid_result)
+                memo_uid = memo.uid
+            except Exception as e:
+                await UniMessage(f"解析memo uid失败: {e}").finish()
+
+        else:
+            memo_uid = uid_result
+
+        memoRecord = await sqlSession.scalar(
+            select(MemoRecord).where(MemoRecord.uid == memo_uid).order_by(MemoRecord.created_at.desc()).limit(1)
+        )
+
+        if memoRecord:
+            memoRecord.message_ids.append(msg_id)
+    else:
+        reply = ext.get_reply(msg_id)
+
+        if reply is None:
+            await UniMessage("未设置uid且没有回复相关消息").finish()
+
+        memoRecord = await sqlSession.scalar(
+            select(MemoRecord)
+            .where(
+                or_(
+                    MemoRecord.message_id == reply.id,
+                    MemoRecord.message_ids.contains(reply.id),
+                )
+            )
+            .order_by(MemoRecord.created_at.desc())
+            .limit(1)
+        )
+
+        if memoRecord is None:
+            await UniMessage("未找到对应memo记录").finish()
+
+        memoRecord.message_ids.append(msg_id)
+
+        memo_uid = memoRecord.uid
+
+    receipt = await UniMessage(f"{client.buildMemoUrl(memo_uid)}").send(reply_to=msg.get_message_id())
+
+    if memoRecord:
+        if reply := receipt.get_reply():
+            memoRecord.message_ids.append(reply.id)
+
+        memoRecord.message_ids = memoRecord.message_ids[:]
+        sqlSession.add(memoRecord)
+
     await sqlSession.commit()

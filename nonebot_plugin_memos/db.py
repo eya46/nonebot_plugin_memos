@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from nonebot_plugin_orm import Model
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy import JSON, ForeignKey, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -50,7 +51,7 @@ class MemoRecord(Model):
     uid: Mapped[str] = mapped_column(nullable=False)
     session_persist_id: Mapped[int] = mapped_column(nullable=False)
     message_id: Mapped[str] = mapped_column(nullable=False)
-    message_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    message_ids: Mapped[list[str]] = mapped_column(MutableList.as_mutable(JSON), nullable=False)
     message: Mapped[str] = mapped_column(nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)

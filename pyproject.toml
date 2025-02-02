@@ -1,12 +1,13 @@
 [project]
 name = "nonebot-plugin-memos"
-version = "0.1.0b12"
+version = "0.1.0b13"
 description = "nonebot2 plugin for memos"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "eya46", email = "admin@eya46.com" }]
 requires-python = ">=3.10"
 dependencies = [
+    "filetype>=1.2.0",
     "nonebot-plugin-alconna>=0.54.2",
     "nonebot-plugin-orm>=0.7.6",
     "nonebot-plugin-session>=0.3.2",
