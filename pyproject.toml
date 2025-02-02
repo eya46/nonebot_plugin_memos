@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-memos"
-version = "0.1.0b9"
+version = "0.1.0b10"
 description = "nonebot2 plugin for memos"
 readme = "README.md"
 license = { file = "LICENSE" }
