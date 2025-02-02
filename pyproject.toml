@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-memos"
-version = "0.1.0b10"
+version = "0.1.0b12"
 description = "nonebot2 plugin for memos"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -24,7 +24,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["nonebot_plugin_memos.*"]
+include = ["nonebot_plugin_memos", "nonebot_plugin_memos.*"]
 
 [tool.nonebot]
 plugins = ["nonebot_plugin_memos"]
