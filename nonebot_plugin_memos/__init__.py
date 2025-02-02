@@ -184,18 +184,22 @@ async def create_handler(
 
     try:
         for image in msg[Image]:
-            raw_bytes = await get_image_bytes(image)
+            img_data = await get_image_bytes(image)
 
-            if raw_bytes is None:
+            if img_data is None:
                 continue
+
+            raw_bytes, type_ = img_data
 
             await client.createResource(
                 filename=image.name,
-                content=image.raw_bytes,
+                content=raw_bytes,
+                type_=type_,
                 size=str(len(raw_bytes)),
                 memo=data.name,
             )
     except Exception as e:
+        logger.exception(e)
         await UniMessage(f"资源上传失败: {e}").send()
 
     success_msg = await UniMessage(f"创建成功\n{client.buildMemoUrl(data.uid)}" + tip).send(at_sender=True)

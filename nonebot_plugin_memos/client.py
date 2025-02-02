@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Any, Type, TypeVar
-from base64 import b64encode
+from base64 import b64decode, b64encode
 
 from nonebot.compat import TypeAdapter
 from httpx import AsyncClient, Response
@@ -73,10 +73,13 @@ class ApiClient:
         if createTime == "":
             # "2025-02-02T11:16:35.944Z"
             createTime = datetime.now(tz=timezone.utc).isoformat()
+        if type_ is None:
+            if isinstance(content, str):
+                type_ = guess_mime(b64decode(content).decode()) or ""
+            else:
+                type_ = guess_mime(content) or ""
         if isinstance(content, bytes):
             content = b64encode(content).decode()
-        if type_ is None:
-            type_ = guess_mime(filename) or ""
         return await self.client.post(
             str(self.base_url / "api/v1/resources"),
             json={
